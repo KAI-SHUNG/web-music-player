@@ -95,21 +95,21 @@ Music/
 
 ## systemd 部署
 
-仓库提供了 [`deploy/mp3-player.service`](deploy/mp3-player.service)。先修改其中的 `User`、`WorkingDirectory`、`ExecStart`，使其符合你的用户名、项目位置和音乐目录。用 `command -v python3` 确认 Python 的绝对路径。
+仓库提供了 [`deploy/music-player.service`](deploy/music-player.service)。先修改其中的 `User`、`WorkingDirectory`、`ExecStart`，使其符合你的用户名、项目位置和音乐目录。用 `command -v python3` 确认 Python 的绝对路径。
 
 ```bash
-sudo cp deploy/mp3-player.service /etc/systemd/system/mp3-player.service
+sudo cp deploy/music-player.service /etc/systemd/system/music-player.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now mp3-player.service
-sudo systemctl status mp3-player.service
+sudo systemctl enable --now music-player.service
+sudo systemctl status music-player.service
 ```
 
 查看实时日志、重启或停止：
 
 ```bash
-sudo journalctl -u mp3-player.service -f
-sudo systemctl restart mp3-player.service
-sudo systemctl stop mp3-player.service
+sudo journalctl -u music-player.service -f
+sudo systemctl restart music-player.service
+sudo systemctl stop music-player.service
 ```
 
 修改 `.service` 文件后，需要再次执行 `daemon-reload`，再重启服务。
@@ -137,12 +137,12 @@ node test_ui.cjs
 ## 项目结构
 
 ```text
-mp3-player/
+music-player/
 ├── server.py                  # HTTP、音频分段读取与歌词接口
 ├── index.html                 # 网页、播放状态和歌词同步
 ├── test_server.py             # HTTP 集成测试
 ├── test_ui.cjs                # 前端逻辑测试
-├── deploy/mp3-player.service  # systemd 示例
+├── deploy/music-player.service  # systemd 示例
 ├── .github/description.txt    # GitHub 仓库简介
 ├── README.md
 └── LICENSE
