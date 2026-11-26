@@ -34,14 +34,28 @@
   button:hover { background: #f3f7fc; border-color: #afc6e3; }
   button:active { background: #eaf2ff; }
   button:focus-visible { outline: 3px solid #1875ea; outline-offset: 3px; }
-  .transport .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; min-height: 42px; padding: 0; color: #52677f; border-color: transparent; background: transparent; border-radius: 50%; }
-  .transport .icon-button:hover { color: #1162ce; background: #edf4ff; }
+  .transport .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; min-height: 42px; padding: 0; color: #52677f; border: 0; background: transparent; border-radius: 50%; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  @media (hover: hover) and (pointer: fine) {
+    .transport .icon-button:hover { color: #1162ce; background: #edf4ff; }
+    #toggle-play:hover { color: #fff; background: #0962d2; }
+  }
+  .transport .icon-button:active { color: #1162ce; background: #edf4ff; }
   .control-icon { display: block; width: 21px; height: 21px; }
   .control-icon[hidden] { display: none; }
   #toggle-play { width: 44px; height: 44px; color: #fff; background: #1875ea; }
-  #toggle-play:hover { background: #0962d2; }
-  #shuffle { margin-left: auto; }
-  #shuffle[aria-pressed="true"] { color: #1162ce; background: #edf4ff; border-color: #91baff; }
+  #toggle-play:active { color: #fff; background: #0962d2; }
+  #volume-control { position: relative; margin-left: auto; flex: 0 0 auto; }
+  #volume-button[aria-expanded="true"] { color: #1162ce; background: #edf4ff; }
+  #volume-popup { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 2; width: 154px; padding: 10px 14px; background: #fff; border: 1px solid #e5e9ef; border-radius: 8px; box-shadow: 0 6px 22px #22304a16; }
+  #volume-popup::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; }
+  #volume { --volume: 100%; display: block; appearance: none; -webkit-appearance: none; width: 100%; height: 28px; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; }
+  #volume::-webkit-slider-runnable-track { height: 4px; border-radius: 99px; background: linear-gradient(to right, #1875ea var(--volume), #dde5ef var(--volume)); }
+  #volume::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 10px; height: 10px; margin-top: -3px; border: 0; border-radius: 50%; background: #1875ea; }
+  #volume::-moz-range-track { height: 4px; border-radius: 99px; background: #dde5ef; }
+  #volume::-moz-range-progress { height: 4px; border-radius: 99px; background: #1875ea; }
+  #volume::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #1875ea; }
+  #volume:focus-visible { outline: 2px solid #1875ea; outline-offset: 4px; border-radius: 4px; }
+  @media (pointer: coarse) { .transport .icon-button { width: 44px; height: 44px; } #volume { height: 44px; } }
   #notice { margin: 12px 0 0; color: #687588; font-size: .875rem; }
   #notice:empty { display: none; }
   #queue-status { margin: 12px 0 0; color: #36516f; font-size: .875rem; overflow-wrap: anywhere; }
@@ -105,15 +119,24 @@
       <span id="duration" class="time">--:--</span>
     </div>
     <div class="transport">
-      <button id="previous" class="icon-button" type="button" aria-label="上一首" title="上一首"><svg class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 5h2v14H5zm14 0v14L8 12z"/></svg></button>
-      <button id="toggle-play" class="icon-button" type="button" aria-label="播放" title="播放">
-        <svg id="play-icon" class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-        <svg id="pause-icon" class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      <!-- Lucide icons (ISC): see THIRD_PARTY_NOTICES.md. Inline SVG keeps playback independent of a CDN. -->
+      <button id="previous" class="icon-button" type="button" aria-label="上一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z"/><path d="M3 20V4"/></svg></button>
+      <button id="toggle-play" class="icon-button" type="button" aria-label="播放">
+        <svg id="play-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
+        <svg id="pause-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></svg>
       </button>
-      <button id="next" class="icon-button" type="button" aria-label="下一首" title="下一首"><svg class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 5h2v14h-2zM5 5l11 7-11 7z"/></svg></button>
-      <button id="shuffle" class="icon-button" type="button" aria-label="顺序播放，点击切换为随机播放" title="顺序播放，点击切换为随机播放" aria-pressed="false">
-        <svg id="sequence-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h11m2-3 3 3-3 3m-2-3h5"/></svg>
-        <svg id="shuffle-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M4 7h3c4 0 6 10 10 10h3m-3-3 3 3-3 3M4 17h3c1.8 0 3.2-2 4.5-4.5M14 8.5C15 7.5 16 7 17 7h3m-3-3 3 3-3 3"/></svg>
+      <button id="next" class="icon-button" type="button" aria-label="下一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4v16"/><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z"/></svg></button>
+      <div id="volume-control">
+        <button id="volume-button" class="icon-button" type="button" aria-label="调整音量" aria-expanded="false" aria-controls="volume-popup">
+          <svg id="volume-high-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>
+          <svg id="volume-low-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>
+          <svg id="volume-off-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z"/><path d="m16.5 14.5 5-5"/><path d="m16.5 9.5 5 5"/></svg>
+        </button>
+        <div id="volume-popup" role="group" aria-label="音量调节" hidden><input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="音量"></div>
+      </div>
+      <button id="shuffle" class="icon-button" type="button" aria-label="顺序播放，点击切换为随机播放" aria-pressed="false">
+        <svg id="sequence-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/></svg>
+        <svg id="shuffle-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg>
       </button>
     </div>
     <p id="queue-status" role="status"></p>
@@ -151,6 +174,14 @@
   const duration = document.querySelector('#duration');
   const shuffleIcon = document.querySelector('#shuffle-icon');
   const sequenceIcon = document.querySelector('#sequence-icon');
+  const volumeControl = document.querySelector('#volume-control');
+  const volumeButton = document.querySelector('#volume-button');
+  const volumePopup = document.querySelector('#volume-popup');
+  const volumeSlider = document.querySelector('#volume');
+  const volumeHighIcon = document.querySelector('#volume-high-icon');
+  const volumeLowIcon = document.querySelector('#volume-low-icon');
+  const volumeOffIcon = document.querySelector('#volume-off-icon');
+  let volumePinned = false, volumeHovered = false;
   const list = document.querySelector('#tracks');
   const now = document.querySelector('#now');
   const status = document.querySelector('#status');
@@ -199,13 +230,11 @@
     playIcon.toggleAttribute('hidden', active);
     pauseIcon.toggleAttribute('hidden', !active);
     playButton.setAttribute('aria-label', active ? '暂停' : '播放');
-    playButton.title = active ? '暂停' : '播放';
   }
   function updateModeUI() {
     shuffleButton.setAttribute('aria-pressed', String(shuffle));
     const label = shuffle ? '随机播放，点击切换为顺序播放' : '顺序播放，点击切换为随机播放';
     shuffleButton.setAttribute('aria-label', label);
-    shuffleButton.title = label;
     shuffleIcon.toggleAttribute('hidden', !shuffle);
     sequenceIcon.toggleAttribute('hidden', shuffle);
   }
@@ -215,6 +244,20 @@
     try { await player.play(); }
     catch { notice.textContent = '无法开始播放，请检查音频文件后重试。'; }
     updatePlaybackUI();
+  }
+  function setVolumeOpen(open) {
+    volumePopup.hidden = !open;
+    volumeButton.setAttribute('aria-expanded', String(open));
+  }
+  function updateVolumeUI() {
+    const level = player.muted ? 0 : player.volume;
+    const percent = Math.round(level * 100);
+    volumeSlider.value = String(percent);
+    volumeSlider.style.setProperty('--volume', `${percent}%`);
+    volumeSlider.setAttribute('aria-valuetext', `${percent}%`);
+    volumeHighIcon.toggleAttribute('hidden', level <= 0.4);
+    volumeLowIcon.toggleAttribute('hidden', level <= 0 || level > 0.4);
+    volumeOffIcon.toggleAttribute('hidden', level > 0);
   }
 
   function validTracks(data) {
@@ -243,6 +286,7 @@
         version: 1, libraryId, tracks, currentUrl: tracks[current]?.url || null,
         position: pendingPosition ?? (Number.isFinite(player.currentTime) ? player.currentTime : 0),
         shuffle, history, forward, shuffleOrder, upNext, query: search.value, expanded: library.open,
+        volume: player.volume, muted: player.muted,
       }));
       lastSavedAt = Date.now();
     } catch { /* Playback also works when browser storage is unavailable. */ }
@@ -557,6 +601,48 @@
   playButton.onclick = togglePlayback;
   document.querySelector('#next').onclick = playNext;
   document.querySelector('#refresh').onclick = refresh;
+  volumeButton.onclick = () => {
+    volumePinned = !volumePinned;
+    setVolumeOpen(volumePinned);
+  };
+  volumeControl.addEventListener('pointerenter', event => {
+    if (event.pointerType === 'touch' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    volumeHovered = true;
+    setVolumeOpen(true);
+  });
+  volumeControl.addEventListener('pointerleave', () => {
+    volumeHovered = false;
+    if (!volumePinned && !volumePopup.contains(document.activeElement)) setVolumeOpen(false);
+  });
+  volumeControl.addEventListener('focusin', event => {
+    if (event.target === volumeSlider || volumeButton.matches(':focus-visible')) setVolumeOpen(true);
+  });
+  volumeControl.addEventListener('focusout', event => {
+    if (volumeControl.contains(event.relatedTarget)) return;
+    volumePinned = false;
+    if (!volumeHovered) setVolumeOpen(false);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!volumeControl.contains(event.target)) {
+      volumePinned = false;
+      setVolumeOpen(false);
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || volumePopup.hidden) return;
+    volumePinned = false;
+    volumeButton.focus({ preventScroll: true });
+    setVolumeOpen(false);
+  });
+  volumeSlider.addEventListener('input', () => {
+    const value = Number(volumeSlider.value);
+    if (!Number.isFinite(value)) return;
+    try { player.volume = Math.max(0, Math.min(1, value / 100)); player.muted = false; }
+    catch { /* Some browsers delegate volume control to the system. */ }
+    updateVolumeUI();
+    saveState();
+  });
+  player.addEventListener('volumechange', () => { updateVolumeUI(); saveState(); });
   search.addEventListener('input', () => { renderSearch(); saveState(); });
   library.addEventListener('toggle', () => saveState());
   lyricPanel.addEventListener('wheel', manualLyricScroll, { passive: true });
@@ -615,6 +701,12 @@
   window.addEventListener('pagehide', () => saveState());
 
   const saved = readState();
+  try {
+    player.volume = Number.isFinite(saved.volume) && saved.volume >= 0 && saved.volume <= 1 ? saved.volume : 1;
+    player.muted = saved.muted === true;
+  } catch { /* Retain the browser's volume if programmatic volume is unavailable. */ }
+  setVolumeOpen(false);
+  updateVolumeUI();
   tracks = validTracks(saved.tracks);
   shuffle = saved.shuffle === true;
   updateModeUI();

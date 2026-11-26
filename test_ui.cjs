@@ -14,7 +14,7 @@ class Element {
     this.readyState = 0; this.duration = 100; this.paused = true; this.clientHeight = 160;
     this.playCalls = 0; this.scrollTop = 0;
     this.scrollCalls = []; this.listenerOptions = {};
-    this.ended = false;
+    this.ended = false; this.volume = 1; this.muted = false;
     this.style = { setProperty: (name, value) => { this.attributes[name] = value; } };
     this.classList = { toggle: (name, on) => { this.attributes[name] = on; } };
   }
@@ -26,6 +26,9 @@ class Element {
   getAttribute(key) { return this.attributes[key] ?? null; }
   removeAttribute(key) { delete this.attributes[key]; if (key === 'src') this._src = undefined; }
   addEventListener(key, handler, options) { this.events[key] = handler; this.listenerOptions[key] = options; }
+  contains(node) { return node === this || this.children.some(child => child.contains(node)); }
+  matches() { return false; }
+  focus() {}
   set src(value) { this._src = value; this.currentTime = 0; this.readyState = 0; }
   get src() { return this._src; }
   scrollTo(options) { this.scrollTop = options.top; this.scrollCalls.push(options); }
@@ -37,17 +40,23 @@ class Element {
 async function browser(names, options = {}) {
   const ids = ['player', 'tracks', 'now', 'status', 'previous', 'next', 'refresh', 'shuffle',
     'library', 'search', 'results', 'search-status', 'lyrics', 'lyric-lines', 'lyric-status', 'notice', 'queue-status', 'record',
-    'toggle-play', 'seek', 'elapsed', 'duration', 'play-icon', 'pause-icon', 'shuffle-icon', 'sequence-icon'];
+    'toggle-play', 'seek', 'elapsed', 'duration', 'play-icon', 'pause-icon', 'shuffle-icon', 'sequence-icon',
+    'volume-control', 'volume-button', 'volume-popup', 'volume', 'volume-high-icon', 'volume-low-icon', 'volume-off-icon'];
   const nodes = Object.fromEntries(ids.map(id => [id, new Element()]));
+  nodes['volume-control'].append(nodes['volume-button']);
+  nodes['volume-control'].append(nodes['volume-popup']);
+  nodes['volume-popup'].append(nodes.volume);
   let random = 0;
   let now = 10000;
   const math = Object.create(Math);
   math.random = () => random;
   const storage = options.storage || new Map();
   const events = {};
+  const documentEvents = {};
   const fetches = [];
   const sandbox = {
-    document: { querySelector: selector => nodes[selector.slice(1)], createElement: () => new Element() },
+    document: { querySelector: selector => nodes[selector.slice(1)], createElement: () => new Element(),
+      addEventListener: (key, handler) => { documentEvents[key] = handler; }, activeElement: null },
     localStorage: {
       getItem: key => { if (options.brokenStorage) throw Error('Blocked'); return storage.get(key) || null; },
       setItem: (key, value) => { if (options.brokenStorage) throw Error('Quota'); storage.set(key, value); },
@@ -71,13 +80,56 @@ async function browser(names, options = {}) {
   };
   vm.runInNewContext(source, sandbox);
   await new Promise(resolve => setImmediate(resolve));
-  return { nodes, storage, events, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; }, advance: ms => { now += ms; } };
+  return { nodes, storage, events, documentEvents, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; }, advance: ms => { now += ms; } };
 }
 
 (async () => {
   const stable = await browser(['A.mp3', 'B.mp3', 'C.mp3', 'D.mp3']);
   const s = stable.nodes;
   const stateKey = 'mp3-player-state-v1';
+  const audioSettings = await browser(['A.mp3']);
+  const v = audioSettings.nodes;
+  assert.equal(v['volume-popup'].hidden, true, 'Volume popup must start closed');
+  v.volume.value = '27';
+  v.volume.events.input();
+  assert.equal(v.player.volume, 0.27, 'Dragging volume must adjust actual audio immediately');
+  assert.equal(v.player.playCalls, 0, 'Volume adjustment must not start playback');
+  const rememberedVolume = await browser(['A.mp3'], { storage: audioSettings.storage });
+  assert.equal(rememberedVolume.nodes.player.volume, 0.27, 'Volume must survive a page reload');
+  v.volume.value = '0'; v.volume.events.input();
+  assert.equal(v.player.volume, 0, 'Zero is a valid volume, not a missing setting');
+  assert.equal(v['volume-off-icon'].getAttribute('hidden'), null);
+  const silentReload = await browser(['A.mp3'], { storage: audioSettings.storage });
+  assert.equal(silentReload.nodes.player.volume, 0, 'Silent volume must survive reload');
+  v.player.muted = true; v.volume.value = '71'; v.volume.events.input();
+  assert.equal(v.player.muted, false, 'Dragging above zero must restore audible playback after external mute');
+  assert.equal(v.player.volume, 0.71);
+  v.player.volume = 0.42; v.player.events.volumechange();
+  assert.equal(v.volume.value, '42', 'External media volume changes must update the slider');
+  assert.equal(JSON.parse(audioSettings.storage.get(stateKey)).volume, 0.42);
+  v.player.muted = true; v.player.events.volumechange();
+  const mutedReload = await browser(['A.mp3'], { storage: audioSettings.storage });
+  assert.equal(mutedReload.nodes.player.muted, true, 'External mute must survive reload');
+  assert.equal(mutedReload.nodes.volume.value, '0', 'A muted player must display silent volume');
+  const invalidVolume = await browser([], { storage: new Map([[stateKey, JSON.stringify({ version: 1, volume: 'loud' })]]) });
+  assert.equal(invalidVolume.nodes.player.volume, 1, 'Invalid saved volume must use the default');
+  v['volume-control'].events.pointerenter({ pointerType: 'mouse' });
+  assert.equal(v['volume-popup'].hidden, false, 'Hovering reveals the volume slider');
+  v['volume-control'].events.pointerleave();
+  assert.equal(v['volume-popup'].hidden, true, 'Leaving an unpinned popup closes it');
+  v['volume-control'].events.pointerenter({ pointerType: 'touch' });
+  assert.equal(v['volume-popup'].hidden, true, 'Touch must not create a sticky hover state');
+  v['volume-button'].onclick();
+  assert.equal(v['volume-popup'].hidden, false, 'Tapping selects and opens the popup');
+  v['volume-control'].events.pointerleave();
+  assert.equal(v['volume-popup'].hidden, false, 'A selected popup stays available for dragging');
+  audioSettings.documentEvents.pointerdown({ target: v.volume });
+  assert.equal(v['volume-popup'].hidden, false, 'Dragging inside must not dismiss the popup');
+  audioSettings.documentEvents.pointerdown({ target: v.next });
+  assert.equal(v['volume-popup'].hidden, true, 'Tapping outside dismisses the popup');
+  v['volume-button'].onclick();
+  audioSettings.documentEvents.keydown({ key: 'Escape' });
+  assert.equal(v['volume-popup'].hidden, true, 'Escape dismisses the popup');
   await s.next.onclick();
   stable.random(0.999);
   s.shuffle.onclick();
@@ -439,5 +491,5 @@ async function browser(names, options = {}) {
   lyricFollow.advance(3001);
   f.player.events.timeupdate();
   assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
-  console.log('PASS: playback/state/queue, custom controls, lyrics hierarchy, smooth follow and native manual scrolling');
+  console.log('PASS: playback/state/queue, custom controls, volume persistence/popup, lyrics hierarchy, smooth follow and native manual scrolling');
 })().catch(error => { console.error(error); process.exitCode = 1; });
