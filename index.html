@@ -109,7 +109,7 @@
 <main>
   <section class="card player-card" aria-label="播放器">
     <div class="now-heading">
-      <div class="record" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12a6 6 0 0 1 6-6m0 12a6 6 0 0 0 6-6"/></svg></div>
+      <div class="record" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12a6 6 0 0 1 6-6m0 12a6 6 0 0 0 6-6"/></svg></div>
       <div class="now-copy"><p class="eyebrow">当前歌曲</p><div id="now" aria-live="polite">选择一首歌曲开始播放</div></div>
     </div>
     <audio id="player" preload="metadata"></audio>
@@ -120,23 +120,23 @@
     </div>
     <div class="transport">
       <!-- Lucide icons (ISC): see THIRD_PARTY_NOTICES.md. Inline SVG keeps playback independent of a CDN. -->
-      <button id="previous" class="icon-button" type="button" aria-label="上一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z"/><path d="M3 20V4"/></svg></button>
+      <button id="previous" class="icon-button" type="button" aria-label="上一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z"/><path d="M3 20V4"/></svg></button>
       <button id="toggle-play" class="icon-button" type="button" aria-label="播放">
-        <svg id="play-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
-        <svg id="pause-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></svg>
+        <svg id="play-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
+        <svg id="pause-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></svg>
       </button>
-      <button id="next" class="icon-button" type="button" aria-label="下一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4v16"/><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z"/></svg></button>
+      <button id="next" class="icon-button" type="button" aria-label="下一首"><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4v16"/><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z"/></svg></button>
       <div id="volume-control">
         <button id="volume-button" class="icon-button" type="button" aria-label="调整音量" aria-expanded="false" aria-controls="volume-popup">
-          <svg id="volume-high-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>
-          <svg id="volume-low-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>
-          <svg id="volume-off-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z"/><path d="m16.5 14.5 5-5"/><path d="m16.5 9.5 5 5"/></svg>
+          <svg id="volume-high-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>
+          <svg id="volume-low-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>
+          <svg id="volume-off-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z"/><path d="m16.5 14.5 5-5"/><path d="m16.5 9.5 5 5"/></svg>
         </button>
         <div id="volume-popup" role="group" aria-label="音量调节" hidden><input id="volume" type="range" min="0" max="100" step="1" value="100" aria-label="音量"></div>
       </div>
       <button id="shuffle" class="icon-button" type="button" aria-label="顺序播放，点击切换为随机播放" aria-pressed="false">
-        <svg id="sequence-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/></svg>
-        <svg id="shuffle-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg>
+        <svg id="sequence-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/></svg>
+        <svg id="shuffle-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg>
       </button>
     </div>
     <p id="queue-status" role="status"></p>
@@ -206,6 +206,7 @@
   let shuffleReady = false;
   let scrubbing = false;
   let centeredLyric = -2, manualScrollUntil = 0, manualPointer = false, manualTouch = false;
+  let lyricScrollFrame = null;
 
   function formatTime(value) {
     const seconds = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
@@ -553,6 +554,7 @@
     }
   }
   function resetLyricFollow() {
+    cancelLyricScroll();
     lyricIndex = -1;
     centeredLyric = -2;
     manualScrollUntil = 0;
@@ -560,11 +562,32 @@
     manualTouch = false;
   }
   function manualLyricScroll() {
-    const interrupt = centeredLyric !== -2;
+    cancelLyricScroll();
     centeredLyric = -2;
     manualScrollUntil = Date.now() + 3000;
-    // Cancel automatic easing once; native wheel/touch movement stays untouched.
-    if (interrupt) lyricPanel.scrollTo({ top: lyricPanel.scrollTop, behavior: 'auto' });
+    // Only stop our animation; native wheel/touch movement stays untouched.
+  }
+  function cancelLyricScroll() {
+    if (lyricScrollFrame !== null) cancelAnimationFrame(lyricScrollFrame);
+    lyricScrollFrame = null;
+  }
+  function animateLyricScroll(target) {
+    cancelLyricScroll();
+    const start = lyricPanel.scrollTop;
+    const end = Math.max(0, Math.min(target, lyricPanel.scrollHeight - lyricPanel.clientHeight));
+    if (Math.abs(end - start) < 0.5 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      lyricPanel.scrollTop = end;
+      return;
+    }
+    const started = performance.now();
+    const step = timestamp => {
+      const progress = Math.max(0, Math.min(1, (timestamp - started) / 420));
+      // Cubic ease-in-out: start and finish gently, without browser scroll smoothing.
+      const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+      lyricPanel.scrollTop = start + (end - start) * eased;
+      lyricScrollFrame = progress < 1 ? requestAnimationFrame(step) : null;
+    };
+    lyricScrollFrame = requestAnimationFrame(step);
   }
   function releaseLyricPointer() {
     if (!manualPointer) return;
@@ -585,17 +608,15 @@
       lyricIndex = active;
       [...lyricLines.children].forEach((p, i) => {
         p.classList.toggle('active', i === active);
-        const emphasis = active >= 0 ? Math.max(0, 4 - Math.abs(i - active)) : 0;
+        const distance = Math.abs(i - active);
+        const emphasis = active < 0 ? 0 : distance === 0 ? 4 : distance === 1 ? 1 : 0;
         p.style.setProperty('--lyric-emphasis', `${emphasis}px`);
       });
     }
     if (manualPointer || manualTouch || Date.now() < manualScrollUntil || active === centeredLyric) return;
     centeredLyric = active;
     const line = lyricLines.children[active];
-    lyricPanel.scrollTo({
-      top: line ? Math.max(0, line.offsetTop - lyricPanel.clientHeight / 2 + (line.offsetHeight || 32) / 2) : 0,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    });
+    animateLyricScroll(line ? line.offsetTop - lyricPanel.clientHeight / 2 + (line.offsetHeight || 32) / 2 : 0);
   }
   document.querySelector('#previous').onclick = playPrevious;
   playButton.onclick = togglePlayback;

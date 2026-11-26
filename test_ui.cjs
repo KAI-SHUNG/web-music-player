@@ -12,7 +12,7 @@ class Element {
     this.children = []; this.attributes = {}; this.events = {}; this.textContent = '';
     this.value = ''; this.open = false; this.hidden = false; this.currentTime = 0;
     this.readyState = 0; this.duration = 100; this.paused = true; this.clientHeight = 160;
-    this.playCalls = 0; this.scrollTop = 0;
+    this.playCalls = 0; this.scrollTop = 0; this.scrollHeight = 1000;
     this.scrollCalls = []; this.listenerOptions = {};
     this.ended = false; this.volume = 1; this.muted = false;
     this.style = { setProperty: (name, value) => { this.attributes[name] = value; } };
@@ -48,6 +48,8 @@ async function browser(names, options = {}) {
   nodes['volume-popup'].append(nodes.volume);
   let random = 0;
   let now = 10000;
+  let frameId = 0;
+  const frames = new Map();
   const math = Object.create(Math);
   math.random = () => random;
   const storage = options.storage || new Map();
@@ -63,6 +65,9 @@ async function browser(names, options = {}) {
     },
     window: { addEventListener: (key, handler) => { events[key] = handler; }, matchMedia: () => ({ matches: options.reducedMotion !== false }) },
     Date: class extends Date { static now() { return now; } },
+    performance: { now: () => now },
+    requestAnimationFrame: callback => { frames.set(++frameId, callback); return frameId; },
+    cancelAnimationFrame: id => frames.delete(id),
     fetch: async url => {
       fetches.push(url);
       if (url === 'api/tracks') {
@@ -80,7 +85,9 @@ async function browser(names, options = {}) {
   };
   vm.runInNewContext(source, sandbox);
   await new Promise(resolve => setImmediate(resolve));
-  return { nodes, storage, events, documentEvents, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; }, advance: ms => { now += ms; } };
+  return { nodes, storage, events, documentEvents, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; }, advance: ms => { now += ms; },
+    pendingFrames: () => frames.size,
+    frame: ms => { now += ms; const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(now)); } };
 }
 
 (async () => {
@@ -446,50 +453,70 @@ async function browser(names, options = {}) {
   f.player.currentTime = 6.1;
   f.player.events.timeupdate();
   assert.equal(f['lyric-lines'].children[3].attributes['--lyric-emphasis'], '4px');
-  assert.equal(f['lyric-lines'].children[2].attributes['--lyric-emphasis'], '3px');
-  assert.equal(f['lyric-lines'].children[1].attributes['--lyric-emphasis'], '2px');
-  assert.equal(f['lyric-lines'].children[0].attributes['--lyric-emphasis'], '1px');
+  assert.equal(f['lyric-lines'].children[2].attributes['--lyric-emphasis'], '1px');
+  assert.equal(f['lyric-lines'].children[4].attributes['--lyric-emphasis'], '1px');
+  assert.equal(f['lyric-lines'].children[1].attributes['--lyric-emphasis'], '0px');
+  assert.equal(f['lyric-lines'].children[0].attributes['--lyric-emphasis'], '0px');
   assert.equal(f['lyric-lines'].children[7].attributes['--lyric-emphasis'], '0px');
-  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth', 'Automatic follow must be smooth');
+  assert.equal(lyricFollow.pendingFrames(), 1, 'Automatic follow must schedule its own animation');
+  assert.equal(f.lyrics.scrollTop, 0, 'Animation must start at the current position without jumping');
+  lyricFollow.frame(105);
+  const earlyPosition = f.lyrics.scrollTop;
+  lyricFollow.frame(105);
+  const halfPosition = f.lyrics.scrollTop;
+  assert.ok(earlyPosition > 0 && earlyPosition < halfPosition / 2, 'Custom easing must start slowly rather than move linearly');
+  assert.equal(halfPosition, 28, 'Halfway through the animation must be halfway to the centered line');
   assert.equal(typeof f.lyrics.events.wheel, 'function', 'Manual scrolling must interrupt automatic follow');
   assert.equal(f.lyrics.listenerOptions.wheel.passive, true, 'Manual wheel movement must stay native');
   f.lyrics.events.wheel({ preventDefault() { throw Error('Do not cancel native wheel input'); } });
-  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'auto', 'Manual input must cancel in-flight smooth scrolling');
+  assert.equal(lyricFollow.pendingFrames(), 0, 'Manual input must cancel the animation frame immediately');
+  lyricFollow.frame(500);
+  assert.equal(f.lyrics.scrollTop, halfPosition, 'A cancelled animation must never move the panel again');
+  assert.equal(f.lyrics.scrollCalls.length, 0, 'Custom easing must not delegate to browser scrolling');
   f.lyrics.scrollTop = 200;
-  const manualCalls = f.lyrics.scrollCalls.length;
   f.player.currentTime = 8.1;
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.length, manualCalls, 'Do not fight manual scrolling when the active lyric changes');
+  assert.equal(lyricFollow.pendingFrames(), 0, 'Do not fight manual scrolling when the active lyric changes');
+  assert.equal(f.lyrics.scrollTop, 200);
   assert.equal(f['lyric-lines'].children[4].attributes.active, true, 'Highlight must still follow audio during manual browsing');
-  lyricFollow.advance(2999);
+  lyricFollow.advance(2499); // 500ms has already elapsed since the manual interruption.
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.length, manualCalls);
+  assert.equal(lyricFollow.pendingFrames(), 0);
   lyricFollow.advance(2);
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.length, manualCalls + 1, 'Resume smooth follow after manual idle even if lyric has not changed');
-  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
+  assert.equal(lyricFollow.pendingFrames(), 1, 'Resume custom easing after manual idle even if lyric has not changed');
+  lyricFollow.frame(420);
+  assert.equal(f.lyrics.scrollTop, 96, 'Animation must finish exactly at the centered lyric');
+  assert.equal(lyricFollow.pendingFrames(), 0, 'A completed animation must stop scheduling frames');
   f.lyrics.events.pointerdown();
-  const heldCalls = f.lyrics.scrollCalls.length;
   lyricFollow.advance(10000);
   f.player.currentTime = 10.1;
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.length, heldCalls, 'A held pointer must suppress recentering');
+  assert.equal(lyricFollow.pendingFrames(), 0, 'A held pointer must suppress recentering');
   lyricFollow.events.pointerup();
   lyricFollow.advance(3001);
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
+  assert.equal(lyricFollow.pendingFrames(), 1);
   assert.equal(typeof f.lyrics.events.touchstart, 'function');
   f.lyrics.events.touchstart();
   f.lyrics.events.pointerdown();
   lyricFollow.events.pointercancel();
-  const touchCalls = f.lyrics.scrollCalls.length;
   lyricFollow.advance(10000);
   f.player.currentTime = 12.1;
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.length, touchCalls, 'Native touch scrolling must not release the hold when pointercancel fires');
+  assert.equal(lyricFollow.pendingFrames(), 0, 'Native touch scrolling must not release the hold when pointercancel fires');
   f.lyrics.events.touchend();
   lyricFollow.advance(3001);
   f.player.events.timeupdate();
-  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
-  console.log('PASS: playback/state/queue, custom controls, volume persistence/popup, lyrics hierarchy, smooth follow and native manual scrolling');
+  assert.equal(lyricFollow.pendingFrames(), 1);
+  await f.next.onclick();
+  assert.equal(lyricFollow.pendingFrames(), 0, 'Changing songs must cancel the old lyric animation');
+  const reduced = await browser(['Reduced.mp3'], { lyrics: { 'Reduced.mp3': '[00:00]zero\n[00:02]one\n[00:04]two\n[00:06]three' } });
+  await reduced.nodes.next.onclick();
+  await new Promise(resolve => setImmediate(resolve));
+  reduced.nodes.player.currentTime = 6.1;
+  reduced.nodes.player.events.timeupdate();
+  assert.equal(reduced.pendingFrames(), 0, 'Reduced motion must jump directly without scheduling animation');
+  assert.equal(reduced.nodes.lyrics.scrollTop, 56);
+  console.log('PASS: playback/state/queue, custom controls, volume persistence/popup, lyrics hierarchy, custom easing and native manual scrolling');
 })().catch(error => { console.error(error); process.exitCode = 1; });
