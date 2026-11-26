@@ -31,7 +31,7 @@ class Element {
 
 async function browser(names, options = {}) {
   const ids = ['player', 'tracks', 'now', 'status', 'previous', 'next', 'refresh', 'shuffle',
-    'library', 'search', 'results', 'search-status', 'lyrics', 'lyric-lines', 'lyric-status', 'notice'];
+    'library', 'search', 'results', 'search-status', 'lyrics', 'lyric-lines', 'lyric-status', 'notice', 'queue-status'];
   const nodes = Object.fromEntries(ids.map(id => [id, new Element()]));
   let random = 0;
   const math = Object.create(Math);
@@ -210,5 +210,75 @@ async function browser(names, options = {}) {
   rejectInitial(Error('Stale network failure'));
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(failedRace.nodes.notice.textContent, '', 'Stale failure must not overwrite a successful refresh');
-  console.log('PASS: shuffle/history, refresh persistence, safe storage, library reconciliation, fold/search and synchronized lyrics');
+  const queueTest = await browser(['A.mp3', 'B.mp3', 'C.mp3']);
+  const q = queueTest.nodes;
+  const queueButton = (nodes, index) => nodes.tracks.children[index].children[1];
+  assert.ok(queueButton(q, 2), 'Each track needs an independent play-next button');
+  await q.next.onclick();
+  const callsBeforeQueue = q.player.playCalls;
+  queueButton(q, 2).events.click();
+  assert.equal(q.player.src, '/media/A.mp3', 'Queuing must not interrupt the current song');
+  assert.equal(q.player.playCalls, callsBeforeQueue);
+  assert.equal(queueButton(q, 2).textContent, '取消待播');
+  assert.match(q['queue-status'].textContent, /C\.mp3/);
+  q.shuffle.onclick();
+  queueButton(q, 1).events.click();
+  assert.deepEqual(JSON.parse(queueTest.storage.get(stateKey)).upNext, ['/media/C.mp3', '/media/B.mp3']);
+  const queueSnapshot = queueTest.storage.get(stateKey);
+  await q.next.onclick();
+  assert.equal(q.player.src, '/media/C.mp3', 'Explicit queue must take precedence over random selection');
+  await q.player.events.ended();
+  assert.equal(q.player.src, '/media/B.mp3', 'Queued songs must play in insertion order');
+  assert.deepEqual(JSON.parse(queueTest.storage.get(stateKey)).upNext, []);
+  assert.equal(q['queue-status'].textContent, '');
+  await q.next.onclick();
+  assert.equal(q.player.src, '/media/A.mp3', 'Normal shuffle resumes after queue drains');
+
+  const resumedQueue = await browser(['A.mp3', 'B.mp3', 'C.mp3'], {
+    storage: new Map([[stateKey, queueSnapshot]]) });
+  assert.equal(resumedQueue.nodes.player.src, '/media/A.mp3');
+  assert.equal(resumedQueue.nodes.player.playCalls, 0);
+  await resumedQueue.nodes.next.onclick();
+  assert.equal(resumedQueue.nodes.player.src, '/media/C.mp3', 'Queue must survive a page refresh');
+  await resumedQueue.nodes.next.onclick();
+  assert.equal(resumedQueue.nodes.player.src, '/media/B.mp3');
+
+  const cancel = await browser(['A.mp3', 'B.mp3', 'C.mp3']);
+  await cancel.nodes.next.onclick();
+  queueButton(cancel.nodes, 2).events.click();
+  queueButton(cancel.nodes, 2).events.click();
+  assert.deepEqual(JSON.parse(cancel.storage.get(stateKey)).upNext, [], 'Second click cancels rather than duplicates');
+  await cancel.nodes.next.onclick();
+  assert.equal(cancel.nodes.player.src, '/media/B.mp3');
+  cancel.nodes.search.value = 'C.mp3';
+  cancel.nodes.search.events.input();
+  cancel.nodes.results.children[0].children[1].events.click();
+  assert.deepEqual(JSON.parse(cancel.storage.get(stateKey)).upNext, ['/media/C.mp3'], 'Search result must queue the original track');
+  await cancel.nodes.tracks.children[2].firstChild.events.click();
+  assert.deepEqual(JSON.parse(cancel.storage.get(stateKey)).upNext, [], 'Direct selection consumes that queued song');
+  await cancel.nodes.next.onclick();
+  assert.equal(cancel.nodes.player.src, '/media/A.mp3');
+
+  const libraryNames = ['A.mp3', 'B.mp3', 'C.mp3'];
+  const removeQueued = await browser(libraryNames);
+  queueButton(removeQueued.nodes, 2).events.click();
+  libraryNames.pop();
+  await removeQueued.nodes.refresh.onclick();
+  assert.deepEqual(JSON.parse(removeQueued.storage.get(stateKey)).upNext, [], 'Removed queued songs must be pruned');
+  const changedQueue = await browser(['A.mp3', 'B.mp3', 'C.mp3'], {
+    storage: new Map([[stateKey, queueSnapshot]]), libraryId: 'different-library' });
+  assert.deepEqual(JSON.parse(changedQueue.storage.get(stateKey)).upNext, [], 'Changing folders must clear old queued URLs');
+  const hostileQueueState = JSON.parse(queueSnapshot);
+  hostileQueueState.upNext = ['/media/C.mp3', '/media/C.mp3', 'https://example.invalid/evil.mp3', '/media/missing.mp3'];
+  const safeQueue = await browser(['A.mp3', 'B.mp3', 'C.mp3'], {
+    storage: new Map([[stateKey, JSON.stringify(hostileQueueState)]]) });
+  assert.deepEqual(JSON.parse(safeQueue.storage.get(stateKey)).upNext, ['/media/C.mp3'], 'Restored queue must be validated and deduplicated');
+  const repeatCurrent = await browser(['Only.mp3']);
+  await repeatCurrent.nodes.next.onclick();
+  queueButton(repeatCurrent.nodes, 0).events.click();
+  const repeatRestored = await browser(['Only.mp3'], { storage: repeatCurrent.storage });
+  assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, ['/media/Only.mp3'], 'Restoring a paused current song must not consume its requested repeat');
+  await repeatRestored.nodes.player.events.ended();
+  assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, []);
+  console.log('PASS: existing playback/lyrics/state tests and play-next FIFO, priority, cancellation, persistence, search and reconciliation');
 })().catch(error => { console.error(error); process.exitCode = 1; });
