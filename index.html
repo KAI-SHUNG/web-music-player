@@ -7,27 +7,39 @@
   :root { color-scheme: light; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: #263449; background: #f1f3f6; }
   * { box-sizing: border-box; }
   body { max-width: 850px; margin: 48px auto; padding: 0 24px 32px; }
-  .page-heading { display: flex; align-items: center; gap: 14px; margin: 0 0 26px; }
-  .brand-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; color: #fff; background: #1875ea; }
-  .brand-icon svg { width: 25px; height: 25px; }
-  h1 { margin: 0; font-size: 1.65rem; font-weight: 700; letter-spacing: -.03em; }
-  .subtitle { margin: 1px 0 0; font-size: .875rem; color: #687588; }
   .card { background: #fff; border: 1px solid #e5e9ef; border-radius: 14px; box-shadow: 0 4px 18px #22304a06; }
   .player-card { padding: 26px; margin-bottom: 22px; }
   .now-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
   .record { display: grid; place-items: center; flex: 0 0 58px; height: 58px; border-radius: 12px; background: #edf4ff; color: #1875ea; }
-  .record svg { width: 30px; height: 30px; }
+  .record svg { width: 30px; height: 30px; animation: record-spin 12s linear infinite; animation-play-state: paused; transform-origin: center; }
+  .record.is-playing svg { animation-play-state: running; }
+  @keyframes record-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .record svg { animation: none; } }
   .now-copy { min-width: 0; }
   .eyebrow { margin: 0 0 3px; color: #687588; font-size: .875rem; }
   #now { font-size: 1.125rem; font-weight: 600; overflow-wrap: anywhere; }
-  audio { display: block; width: 100%; height: 44px; accent-color: #1875ea; }
-  .transport { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  audio { display: none; }
+  .progress-row { display: flex; align-items: center; gap: 12px; min-height: 24px; }
+  .time { min-width: 36px; color: #687588; font-size: .875rem; font-variant-numeric: tabular-nums; }
+  #duration { text-align: right; }
+  #seek { --progress: 0%; appearance: none; -webkit-appearance: none; flex: 1; min-width: 0; height: 5px; margin: 0; padding: 0; border: 0; border-radius: 99px; cursor: pointer; background: linear-gradient(to right, #1875ea var(--progress), #dde5ef var(--progress)); }
+  #seek::-webkit-slider-runnable-track { height: 5px; border-radius: 99px; }
+  #seek::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 12px; height: 12px; margin-top: -3.5px; border: 0; border-radius: 50%; background: #1875ea; box-shadow: 0 0 0 3px #fff; }
+  #seek::-moz-range-track { height: 5px; background: transparent; }
+  #seek::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #1875ea; box-shadow: 0 0 0 3px #fff; }
+  #seek:disabled { cursor: default; opacity: .45; }
+  #seek:focus-visible { outline: 2px solid #1875ea; outline-offset: 6px; }
+  .transport { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
   button { min-height: 42px; font: inherit; font-size: .875rem; font-weight: 500; cursor: pointer; color: #36516f; background: #fff; border: 1px solid #dce3ed; border-radius: 8px; padding: 8px 16px; }
   button:hover { background: #f3f7fc; border-color: #afc6e3; }
   button:active { background: #eaf2ff; }
   button:focus-visible { outline: 3px solid #1875ea; outline-offset: 3px; }
-  #next { color: #fff; background: #1875ea; border-color: #1875ea; }
-  #next:hover { background: #0962d2; }
+  .transport .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; min-height: 42px; padding: 0; color: #52677f; border-color: transparent; background: transparent; border-radius: 50%; }
+  .transport .icon-button:hover { color: #1162ce; background: #edf4ff; }
+  .control-icon { display: block; width: 21px; height: 21px; }
+  .control-icon[hidden] { display: none; }
+  #toggle-play { width: 44px; height: 44px; color: #fff; background: #1875ea; }
+  #toggle-play:hover { background: #0962d2; }
   #shuffle { margin-left: auto; }
   #shuffle[aria-pressed="true"] { color: #1162ce; background: #edf4ff; border-color: #91baff; }
   #notice { margin: 12px 0 0; color: #687588; font-size: .875rem; }
@@ -66,11 +78,9 @@
   .track-list .queue-add[aria-pressed="true"] { color: #1162ce; background: #edf4ff; border-color: #91baff; }
   @media (max-width: 540px) {
     body { margin: 26px auto; padding: 0 14px 20px; }
-    .page-heading { margin-bottom: 20px; }
     .player-card { padding: 20px 16px; margin-bottom: 16px; }
     .library-head { padding: 18px 16px; align-items: flex-start; gap: 10px; }
     #refresh { padding: 8px 10px; }
-    .transport button { flex: 1; }
     .now-heading { gap: 12px; }
     .record { flex-basis: 48px; height: 48px; }
     .search-card { padding: 16px; }
@@ -80,21 +90,29 @@
   }
 </style>
 <body>
-<header class="page-heading">
-  <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2.5"/><ellipse cx="17" cy="16" rx="3" ry="2.5"/></svg></div>
-  <div><h1>本地音乐</h1><p class="subtitle">MP3 播放器</p></div>
-</header>
 <main>
   <section class="card player-card" aria-label="播放器">
     <div class="now-heading">
       <div class="record" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12a6 6 0 0 1 6-6m0 12a6 6 0 0 0 6-6"/></svg></div>
       <div class="now-copy"><p class="eyebrow">当前歌曲</p><div id="now" aria-live="polite">选择一首歌曲开始播放</div></div>
     </div>
-    <audio id="player" controls preload="metadata"></audio>
+    <audio id="player" preload="metadata"></audio>
+    <div class="progress-row">
+      <span id="elapsed" class="time">0:00</span>
+      <input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="播放进度" disabled>
+      <span id="duration" class="time">--:--</span>
+    </div>
     <div class="transport">
-      <button id="previous" type="button">上一首</button>
-      <button id="next" type="button">下一首</button>
-      <button id="shuffle" type="button" aria-pressed="false">随机播放</button>
+      <button id="previous" class="icon-button" type="button" aria-label="上一首" title="上一首"><svg class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 5h2v14H5zm14 0v14L8 12z"/></svg></button>
+      <button id="toggle-play" class="icon-button" type="button" aria-label="播放" title="播放">
+        <svg id="play-icon" class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="pause-icon" class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      </button>
+      <button id="next" class="icon-button" type="button" aria-label="下一首" title="下一首"><svg class="control-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 5h2v14h-2zM5 5l11 7-11 7z"/></svg></button>
+      <button id="shuffle" class="icon-button" type="button" aria-label="顺序播放，点击切换为随机播放" title="顺序播放，点击切换为随机播放" aria-pressed="false">
+        <svg id="sequence-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h11m2-3 3 3-3 3m-2-3h5"/></svg>
+        <svg id="shuffle-icon" class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M4 7h3c4 0 6 10 10 10h3m-3-3 3 3-3 3M4 17h3c1.8 0 3.2-2 4.5-4.5M14 8.5C15 7.5 16 7 17 7h3m-3-3 3 3-3 3"/></svg>
+      </button>
     </div>
     <p id="queue-status" role="status"></p>
     <p id="notice" role="status"></p>
@@ -122,6 +140,15 @@
 </main>
 <script>
   const player = document.querySelector('#player');
+  const record = document.querySelector('.record');
+  const playButton = document.querySelector('#toggle-play');
+  const playIcon = document.querySelector('#play-icon');
+  const pauseIcon = document.querySelector('#pause-icon');
+  const seek = document.querySelector('#seek');
+  const elapsed = document.querySelector('#elapsed');
+  const duration = document.querySelector('#duration');
+  const shuffleIcon = document.querySelector('#shuffle-icon');
+  const sequenceIcon = document.querySelector('#sequence-icon');
   const list = document.querySelector('#tracks');
   const now = document.querySelector('#now');
   const status = document.querySelector('#status');
@@ -141,6 +168,51 @@
   let timedLyrics = [];
   const history = [];
   const upNext = [];
+  const forward = [];
+  const shuffleOrder = [];
+  let shuffleReady = false;
+  let scrubbing = false;
+
+  function formatTime(value) {
+    const seconds = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
+    const minutes = Math.floor(seconds / 60);
+    const tail = String(seconds % 60).padStart(2, '0');
+    return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${tail}` : `${minutes}:${tail}`;
+  }
+  function updateProgress() {
+    const length = player.duration;
+    const available = Number.isFinite(length) && length > 0 && current >= 0;
+    seek.disabled = !available;
+    seek.max = available ? String(length) : '0';
+    duration.textContent = available ? formatTime(length) : '--:--';
+    const position = scrubbing ? Number(seek.value) : (pendingPosition ?? player.currentTime ?? 0);
+    if (!scrubbing) seek.value = String(available ? Math.max(0, Math.min(position, length)) : 0);
+    elapsed.textContent = formatTime(position);
+    seek.style.setProperty('--progress', `${available ? Math.max(0, Math.min(100, position / length * 100)) : 0}%`);
+    seek.setAttribute('aria-valuetext', `${formatTime(position)} / ${available ? formatTime(length) : '--:--'}`);
+  }
+  function updatePlaybackUI() {
+    const active = !player.paused && !player.ended && current >= 0;
+    playIcon.toggleAttribute('hidden', active);
+    pauseIcon.toggleAttribute('hidden', !active);
+    playButton.setAttribute('aria-label', active ? '暂停' : '播放');
+    playButton.title = active ? '暂停' : '播放';
+  }
+  function updateModeUI() {
+    shuffleButton.setAttribute('aria-pressed', String(shuffle));
+    const label = shuffle ? '随机播放，点击切换为顺序播放' : '顺序播放，点击切换为随机播放';
+    shuffleButton.setAttribute('aria-label', label);
+    shuffleButton.title = label;
+    shuffleIcon.toggleAttribute('hidden', !shuffle);
+    sequenceIcon.toggleAttribute('hidden', shuffle);
+  }
+  async function togglePlayback() {
+    if (current < 0) return playNext();
+    if (!player.paused && !player.ended) { player.pause(); return; }
+    try { await player.play(); }
+    catch { notice.textContent = '无法开始播放，请检查音频文件后重试。'; }
+    updatePlaybackUI();
+  }
 
   function validTracks(data) {
     const seen = new Set();
@@ -167,7 +239,7 @@
       localStorage.setItem(STATE_KEY, JSON.stringify({
         version: 1, libraryId, tracks, currentUrl: tracks[current]?.url || null,
         position: pendingPosition ?? (Number.isFinite(player.currentTime) ? player.currentTime : 0),
-        shuffle, history, upNext, query: search.value, expanded: library.open,
+        shuffle, history, forward, shuffleOrder, upNext, query: search.value, expanded: library.open,
       }));
       lastSavedAt = Date.now();
     } catch { /* Playback also works when browser storage is unavailable. */ }
@@ -243,7 +315,22 @@
     renderSearch();
     updateStatus();
   }
-  async function play(index, remember = true, autoplay = true, position = 0) {
+  function shuffled(urls) {
+    const result = [...urls];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+  function startShuffleRound(includeCurrent = false) {
+    const currentUrl = tracks[current]?.url;
+    const urls = shuffled(tracks.filter(track => includeCurrent || track.url !== currentUrl).map(track => track.url));
+    if (urls.length > 1 && urls[0] === currentUrl) [urls[0], urls[1]] = [urls[1], urls[0]];
+    shuffleOrder.splice(0, shuffleOrder.length, ...urls);
+    shuffleReady = true;
+  }
+  async function play(index, remember = true, autoplay = true, position = 0, reason = 'select') {
     if (!tracks.length) return;
     const next = (index + tracks.length) % tracks.length;
     if (remember && current >= 0 && next !== current) {
@@ -251,11 +338,25 @@
       if (history.length > 200) history.shift();
     }
     current = next;
+    record.classList.toggle('is-playing', false);
+    if (autoplay && reason !== 'history') {
+      const pending = shuffleOrder.indexOf(tracks[current].url);
+      if (pending >= 0) shuffleOrder.splice(pending, 1);
+      if (reason === 'select') forward.length = 0;
+      else {
+        for (let i = forward.length - 1; i >= 0; i--) {
+          if (forward[i] === tracks[current].url) forward.splice(i, 1);
+        }
+      }
+    }
     const queued = upNext.indexOf(tracks[current].url);
-    if (autoplay && queued >= 0) upNext.splice(queued, 1);
+    if (autoplay && reason !== 'history' && queued >= 0) upNext.splice(queued, 1);
     now.textContent = tracks[current].name;
     pendingPosition = position;
+    scrubbing = false;
     player.src = tracks[current].url;
+    updateProgress();
+    updatePlaybackUI();
     notice.textContent = autoplay ? '' : '已恢复上次歌曲与进度，点击播放继续。';
     markCurrent();
     updateQueueUI();
@@ -273,27 +374,43 @@
     while (upNext.length) {
       const url = upNext.shift();
       const index = tracks.findIndex(track => track.url === url);
-      if (index >= 0) return play(index);
+      if (index >= 0) return play(index, true, true, 0, 'next');
     }
-    if (!shuffle || tracks.length === 1) return play(current + 1);
-    if (current < 0) return play(Math.floor(Math.random() * tracks.length));
-    let index = Math.floor(Math.random() * (tracks.length - 1));
-    if (index >= current) index++;
-    return play(index);
+    while (forward.length) {
+      const url = forward.pop();
+      const index = tracks.findIndex(track => track.url === url);
+      if (index >= 0 && index !== current) return play(index, true, true, 0, 'history');
+    }
+    if (!shuffle || tracks.length === 1) return play(current + 1, true, true, 0, 'next');
+    if (!shuffleReady) startShuffleRound();
+    if (!shuffleOrder.length) startShuffleRound(true);
+    const url = shuffleOrder.shift();
+    return play(tracks.findIndex(track => track.url === url), true, true, 0, 'next');
   }
   function playPrevious() {
+    function visit(index) {
+      if (current >= 0 && current !== index) {
+        forward.push(tracks[current].url);
+        if (forward.length > 200) forward.shift();
+      }
+      return play(index, false, true, 0, 'history');
+    }
     while (history.length) {
       const url = history.pop();
       const index = tracks.findIndex(track => track.url === url);
-      if (index >= 0) return play(index, false);
+      if (index >= 0) return visit(index);
     }
-    return play(current < 0 ? 0 : current - 1, false);
+    return visit(current < 0 ? 0 : (current - 1 + tracks.length) % tracks.length);
   }
   function clearSelection() {
     current = -1;
     pendingPosition = null;
     player.removeAttribute('src');
     player.load();
+    scrubbing = false;
+    updateProgress();
+    updatePlaybackUI();
+    record.classList.toggle('is-playing', false);
     now.textContent = '选择一首歌曲开始播放';
     notice.textContent = '';
     lyricRequest++;
@@ -316,15 +433,27 @@
       const changedFolder = libraryId && incomingId && libraryId !== incomingId;
       const oldUrl = tracks[current]?.url;
       const byUrl = new Map(incoming.map(track => [track.url, track]));
+      const previousUrls = new Set(tracks.map(track => track.url));
       const surviving = changedFolder ? [] : tracks.filter(track => byUrl.has(track.url));
       const existing = new Set(surviving.map(track => track.url));
       tracks = [...surviving.map(track => byUrl.get(track.url)), ...incoming.filter(track => !existing.has(track.url))];
       if (changedFolder) history.length = 0;
+      const remainingForward = changedFolder ? [] : forward.filter(url => byUrl.has(url));
+      forward.splice(0, forward.length, ...remainingForward);
       const remainingQueue = changedFolder ? [] : upNext.filter(url => byUrl.has(url));
       upNext.splice(0, upNext.length, ...remainingQueue);
       libraryId = incomingId || libraryId;
       current = changedFolder ? -1 : tracks.findIndex(track => track.url === oldUrl);
       if (current < 0 && oldUrl) clearSelection();
+      if (changedFolder) { shuffleOrder.length = 0; shuffleReady = false; }
+      if (shuffle) {
+        if (!shuffleReady) startShuffleRound();
+        else {
+          const remaining = shuffleOrder.filter(url => byUrl.has(url));
+          const added = shuffled(incoming.filter(track => !previousUrls.has(track.url) && track.url !== tracks[current]?.url).map(track => track.url));
+          shuffleOrder.splice(0, shuffleOrder.length, ...remaining, ...added);
+        }
+      }
       renderLibrary();
       saveState();
     } catch {
@@ -396,44 +525,72 @@
     });
   }
   document.querySelector('#previous').onclick = playPrevious;
+  playButton.onclick = togglePlayback;
   document.querySelector('#next').onclick = playNext;
   document.querySelector('#refresh').onclick = refresh;
   search.addEventListener('input', () => { renderSearch(); saveState(); });
   library.addEventListener('toggle', () => saveState());
+  seek.addEventListener('input', () => { scrubbing = true; updateProgress(); });
+  seek.addEventListener('pointercancel', () => { scrubbing = false; updateProgress(); });
+  seek.addEventListener('change', () => {
+    if (!seek.disabled && Number.isFinite(Number(seek.value))) {
+      try {
+        player.currentTime = Math.max(0, Math.min(Number(seek.value), player.duration));
+        pendingPosition = null;
+      } catch { notice.textContent = '暂时无法跳转，请稍后重试。'; }
+    }
+    scrubbing = false;
+    updateProgress();
+    updateLyrics();
+    saveState();
+  });
   shuffleButton.onclick = () => {
     shuffle = !shuffle;
-    shuffleButton.setAttribute('aria-pressed', String(shuffle));
+    forward.length = 0;
+    if (shuffle) startShuffleRound();
+    else { shuffleOrder.length = 0; shuffleReady = false; }
+    updateModeUI();
     updateStatus();
     saveState();
   };
-  player.addEventListener('ended', playNext);
+  player.addEventListener('ended', () => { record.classList.toggle('is-playing', false); updatePlaybackUI(); return playNext(); });
   player.addEventListener('loadedmetadata', () => {
     if (pendingPosition !== null) {
       const target = Number.isFinite(player.duration) ? Math.min(pendingPosition, player.duration) : pendingPosition;
       try { player.currentTime = Math.max(0, target); pendingPosition = null; } catch { /* Retry when metadata is ready. */ }
     }
     updateLyrics();
+    updateProgress();
     saveState();
   });
-  player.addEventListener('timeupdate', () => { updateLyrics(); saveState(false); });
-  player.addEventListener('seeked', () => { updateLyrics(); saveState(); });
-  player.addEventListener('pause', () => saveState());
-  player.addEventListener('play', () => { notice.textContent = ''; saveState(); });
-  player.addEventListener('error', () => { notice.textContent = '音频读取失败或格式不受支持，请检查文件，或选择另一首。'; });
+  player.addEventListener('durationchange', updateProgress);
+  player.addEventListener('timeupdate', () => { updateLyrics(); updateProgress(); saveState(false); });
+  player.addEventListener('seeked', () => { updateLyrics(); updateProgress(); saveState(); });
+  player.addEventListener('pause', () => { record.classList.toggle('is-playing', false); updatePlaybackUI(); saveState(); });
+  player.addEventListener('playing', () => record.classList.toggle('is-playing', !player.paused && !player.ended));
+  player.addEventListener('waiting', () => record.classList.toggle('is-playing', false));
+  player.addEventListener('play', () => { notice.textContent = ''; updatePlaybackUI(); saveState(); });
+  player.addEventListener('error', () => { record.classList.toggle('is-playing', false); updatePlaybackUI(); notice.textContent = '音频读取失败或格式不受支持，请检查文件，或选择另一首。'; });
   window.addEventListener('pagehide', () => saveState());
 
   const saved = readState();
   tracks = validTracks(saved.tracks);
   shuffle = saved.shuffle === true;
-  shuffleButton.setAttribute('aria-pressed', String(shuffle));
+  updateModeUI();
   libraryId = typeof saved.libraryId === 'string' ? saved.libraryId : null;
   search.value = typeof saved.query === 'string' ? saved.query.slice(0, 500) : '';
   library.open = saved.expanded === true;
   history.push(...(Array.isArray(saved.history) ? saved.history.filter(url => tracks.some(track => track.url === url)).slice(-200) : []));
   upNext.push(...new Set(Array.isArray(saved.upNext) ? saved.upNext.filter(url => tracks.some(track => track.url === url)) : []));
+  forward.push(...(Array.isArray(saved.forward) ? saved.forward.filter(url => tracks.some(track => track.url === url)).slice(-200) : []));
+  shuffleOrder.push(...new Set(Array.isArray(saved.shuffleOrder) ? saved.shuffleOrder.filter(url => tracks.some(track => track.url === url)) : []));
+  shuffleReady = Array.isArray(saved.shuffleOrder);
   renderLibrary();
   const restored = tracks.findIndex(track => track.url === saved.currentUrl);
   if (restored >= 0) play(restored, false, false, Number.isFinite(saved.position) && saved.position >= 0 ? saved.position : 0);
+  if (shuffle && !shuffleReady) { startShuffleRound(); saveState(); }
+  updateProgress();
+  updatePlaybackUI();
   refresh();
 </script>
 </body>

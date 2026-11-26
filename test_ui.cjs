@@ -13,12 +13,15 @@ class Element {
     this.value = ''; this.open = false; this.hidden = false; this.currentTime = 0;
     this.readyState = 0; this.duration = 100; this.paused = true; this.clientHeight = 160;
     this.playCalls = 0; this.scrollTop = 0;
+    this.ended = false;
+    this.style = { setProperty: (name, value) => { this.attributes[name] = value; } };
     this.classList = { toggle: (name, on) => { this.attributes[name] = on; } };
   }
   append(child) { child.offsetTop = this.children.length * 40; this.children.push(child); }
   get firstChild() { return this.children[0]; }
   replaceChildren(...children) { this.children = []; children.forEach(c => this.append(c)); }
   setAttribute(key, value) { this.attributes[key] = value; }
+  toggleAttribute(key, force) { if (force) this.attributes[key] = ''; else delete this.attributes[key]; }
   getAttribute(key) { return this.attributes[key] ?? null; }
   removeAttribute(key) { delete this.attributes[key]; if (key === 'src') this._src = undefined; }
   addEventListener(key, handler) { this.events[key] = handler; }
@@ -27,11 +30,13 @@ class Element {
   scrollTo(options) { this.scrollTop = options.top; }
   load() { this.currentTime = 0; }
   async play() { this.paused = false; this.playCalls++; this.events.play?.(); }
+  pause() { this.paused = true; this.events.pause?.(); }
 }
 
 async function browser(names, options = {}) {
   const ids = ['player', 'tracks', 'now', 'status', 'previous', 'next', 'refresh', 'shuffle',
-    'library', 'search', 'results', 'search-status', 'lyrics', 'lyric-lines', 'lyric-status', 'notice', 'queue-status'];
+    'library', 'search', 'results', 'search-status', 'lyrics', 'lyric-lines', 'lyric-status', 'notice', 'queue-status', 'record',
+    'toggle-play', 'seek', 'elapsed', 'duration', 'play-icon', 'pause-icon', 'shuffle-icon', 'sequence-icon'];
   const nodes = Object.fromEntries(ids.map(id => [id, new Element()]));
   let random = 0;
   const math = Object.create(Math);
@@ -67,10 +72,107 @@ async function browser(names, options = {}) {
 }
 
 (async () => {
+  const stable = await browser(['A.mp3', 'B.mp3', 'C.mp3', 'D.mp3']);
+  const s = stable.nodes;
+  const stateKey = 'mp3-player-state-v1';
+  await s.next.onclick();
+  stable.random(0.999);
+  s.shuffle.onclick();
+  const initialOrder = JSON.parse(stable.storage.get(stateKey)).shuffleOrder;
+  assert.deepEqual(initialOrder, ['/media/B.mp3', '/media/C.mp3', '/media/D.mp3'], 'Shuffle must build a stable remaining order');
+  stable.random(0);
+  await s.next.onclick();
+  assert.equal(s.player.src, '/media/B.mp3', 'Next must follow the saved order rather than draw again');
+  await s.next.onclick();
+  assert.equal(s.player.src, '/media/C.mp3');
+  const remaining = JSON.parse(stable.storage.get(stateKey)).shuffleOrder;
+  await s.previous.onclick();
+  assert.equal(s.player.src, '/media/B.mp3');
+  assert.deepEqual(JSON.parse(stable.storage.get(stateKey)).shuffleOrder, remaining, 'Previous must leave remaining random order untouched');
+  const backSnapshot = stable.storage.get(stateKey);
+  await s.next.onclick();
+  assert.equal(s.player.src, '/media/C.mp3', 'Next after previous must return to the track just left');
+  await s.next.onclick();
+  assert.equal(s.player.src, '/media/D.mp3');
+  const replay = await browser(['A.mp3', 'B.mp3', 'C.mp3', 'D.mp3'], {
+    storage: new Map([[stateKey, backSnapshot]]) });
+  await replay.nodes.next.onclick();
+  assert.equal(replay.nodes.player.src, '/media/C.mp3', 'Forward history must survive refresh');
+  await replay.nodes.next.onclick();
+  assert.equal(replay.nodes.player.src, '/media/D.mp3');
+  const newCycle = [];
+  for (let i = 0; i < 4; i++) { await s.next.onclick(); newCycle.push(s.player.src); }
+  assert.equal(new Set(newCycle).size, 4, 'Each new shuffle round must contain each track exactly once');
+  assert.notEqual(newCycle[0], '/media/D.mp3', 'New round must not immediately repeat its previous last track');
+
+  const manual = await browser(['A.mp3', 'B.mp3', 'C.mp3', 'D.mp3']);
+  await manual.nodes.next.onclick();
+  manual.random(0.999);
+  manual.nodes.shuffle.onclick();
+  await manual.nodes.tracks.children[2].firstChild.events.click();
+  assert.deepEqual(JSON.parse(manual.storage.get(stateKey)).shuffleOrder, ['/media/B.mp3', '/media/D.mp3'], 'Picking a song must preserve the rest of the random sequence');
+  await manual.nodes.next.onclick();
+  assert.equal(manual.nodes.player.src, '/media/B.mp3');
+  await manual.nodes.refresh.onclick();
+  assert.deepEqual(JSON.parse(manual.storage.get(stateKey)).shuffleOrder, ['/media/D.mp3'], 'Refreshing must not regenerate shuffle');
+
+  s.player.paused = false;
+  s.player.events.playing();
+  assert.equal(s.record.attributes['is-playing'], true, 'Record rotates while audio is actually playing');
+  s.player.paused = true;
+  s.player.events.pause();
+  assert.equal(s.record.attributes['is-playing'], false, 'Record pauses with audio');
+  s.player.paused = false;
+  s.player.events.playing();
+  s.player.events.waiting();
+  assert.equal(s.record.attributes['is-playing'], false, 'Record pauses while buffering');
+
+  const custom = await browser(['A.mp3', 'B.mp3']);
+  const controls = custom.nodes;
+  assert.equal(typeof controls['toggle-play'].onclick, 'function', 'Custom play/pause control must be wired');
+  assert.equal(controls['toggle-play'].attributes['aria-label'], '播放');
+  assert.equal(controls['pause-icon'].getAttribute('hidden'), '', 'SVG visibility must use a real hidden attribute');
+  await controls['toggle-play'].onclick();
+  assert.equal(controls.player.src, '/media/A.mp3');
+  assert.equal(controls['toggle-play'].attributes['aria-label'], '暂停');
+  assert.equal(controls['play-icon'].getAttribute('hidden'), '');
+  assert.equal(controls['pause-icon'].getAttribute('hidden'), null);
+  await controls['toggle-play'].onclick();
+  assert.equal(controls.player.paused, true);
+  assert.equal(controls['toggle-play'].attributes['aria-label'], '播放');
+  controls.player.duration = 125.6;
+  controls.player.readyState = 1;
+  controls.player.events.loadedmetadata();
+  assert.equal(controls.duration.textContent, '2:05');
+  assert.equal(controls.seek.disabled, false);
+  controls.player.currentTime = 62.9;
+  controls.player.events.timeupdate();
+  assert.equal(controls.elapsed.textContent, '1:02');
+  assert.equal(controls.seek.value, '62.9');
+  controls.seek.value = '80';
+  controls.seek.events.input();
+  assert.equal(controls.elapsed.textContent, '1:20', 'Dragging previews the destination time');
+  assert.equal(controls.player.currentTime, 62.9);
+  controls.seek.events.change();
+  assert.equal(controls.player.currentTime, 80);
+  assert.equal(JSON.parse(custom.storage.get(stateKey)).position, 80, 'Custom seeking must persist the committed position');
+  controls.shuffle.onclick();
+  assert.equal(controls['shuffle-icon'].getAttribute('hidden'), null);
+  assert.equal(controls['sequence-icon'].getAttribute('hidden'), '');
+  assert.match(controls.shuffle.attributes['aria-label'], /随机播放/);
+  controls.shuffle.onclick();
+  assert.equal(controls['shuffle-icon'].getAttribute('hidden'), '');
+  assert.equal(controls['sequence-icon'].getAttribute('hidden'), null);
+  controls.player.duration = NaN;
+  controls.player.events.durationchange();
+  assert.equal(controls.seek.disabled, true);
+  assert.equal(controls.duration.textContent, '--:--');
+
   const { nodes: n, random } = await browser(['A.mp3', 'B.mp3', 'C.mp3']);
   assert.equal(typeof n.shuffle.onclick, 'function', 'Random playback switch is not wired');
   await n.next.onclick();
   assert.equal(n.player.src, '/media/A.mp3');
+  random(0.999);
   n.shuffle.onclick();
   assert.equal(n.shuffle.attributes['aria-pressed'], 'true');
   random(0);
@@ -81,7 +183,7 @@ async function browser(names, options = {}) {
   assert.equal(n.player.src, '/media/C.mp3');
   random(0);
   await n.player.events.ended();
-  assert.equal(n.player.src, '/media/A.mp3', 'Automatic continuation must also shuffle');
+  assert.equal(n.player.src, '/media/B.mp3', 'Automatic continuation must begin the next saved shuffle round');
   await n.previous.onclick();
   assert.equal(n.player.src, '/media/C.mp3', 'Previous must return to the last played song');
   assert.equal(n.now.textContent, 'C.mp3');
@@ -106,7 +208,6 @@ async function browser(names, options = {}) {
   assert.equal(empty.player.src, undefined);
 
   // A lost storage write, re-sort on reload, or automatic play would break these.
-  const stateKey = 'mp3-player-state-v1';
   const originalState = JSON.stringify({ version: 1, libraryId: 'test-library',
     tracks: ['C.mp3', 'A.mp3', 'B.mp3'].map(name => ({ name, url: '/media/' + name })),
     currentUrl: '/media/B.mp3', position: 42.5, shuffle: true,
@@ -232,7 +333,7 @@ async function browser(names, options = {}) {
   assert.deepEqual(JSON.parse(queueTest.storage.get(stateKey)).upNext, []);
   assert.equal(q['queue-status'].textContent, '');
   await q.next.onclick();
-  assert.equal(q.player.src, '/media/A.mp3', 'Normal shuffle resumes after queue drains');
+  assert.equal(q.player.src, '/media/C.mp3', 'Normal shuffle resumes without repeating the last queued song');
 
   const resumedQueue = await browser(['A.mp3', 'B.mp3', 'C.mp3'], {
     storage: new Map([[stateKey, queueSnapshot]]) });
@@ -280,5 +381,5 @@ async function browser(names, options = {}) {
   assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, ['/media/Only.mp3'], 'Restoring a paused current song must not consume its requested repeat');
   await repeatRestored.nodes.player.events.ended();
   assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, []);
-  console.log('PASS: existing playback/lyrics/state tests and play-next FIFO, priority, cancellation, persistence, search and reconciliation');
+  console.log('PASS: stable shuffle/history, custom controls/seek/mode, record animation, queue, persistence, search and lyrics');
 })().catch(error => { console.error(error); process.exitCode = 1; });
