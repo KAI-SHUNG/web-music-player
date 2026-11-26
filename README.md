@@ -116,6 +116,18 @@ sudo systemctl stop music-player.service
 
 服务默认提供 HTTP。需要 HTTPS 时，可由已有转发入口或反向代理处理 TLS；使用 Nginx 时可将本服务绑定到 `127.0.0.1`，再代理对应端口。
 
+## 更新
+
+以克隆仓库的普通用户运行：
+
+```bash
+./update.sh
+```
+
+脚本会自动进入自身所在的项目目录，执行 `git pull --ff-only`，成功后通过 `sudo systemctl restart music-player.service` 重启服务。拉取失败时立即退出，不会重启服务；如需授权，`sudo` 会提示输入密码。
+
+首次获取脚本可先执行 `git pull --ff-only`。脚本默认更新当前分支配置的上游，请在部署分支上运行；运行环境需要 Bash、Git、sudo 和已安装的 `music-player.service`。
+
 ## 测试
 
 在项目根目录执行 HTTP 集成测试：
@@ -140,6 +152,7 @@ node test_ui.cjs
 music-player/
 ├── server.py                  # HTTP、音频分段读取与歌词接口
 ├── index.html                 # 网页、播放状态和歌词同步
+├── update.sh                  # 拉取更新并重启 systemd 服务
 ├── test_server.py             # HTTP 集成测试
 ├── test_ui.cjs                # 前端逻辑测试
 ├── deploy/music-player.service  # systemd 示例
