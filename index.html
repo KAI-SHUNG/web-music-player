@@ -49,9 +49,11 @@
   .lyrics-shell { margin-top: 20px; border-top: 1px solid #edf0f4; }
   #lyric-status { margin: 14px 0 0; color: #687588; text-align: center; font-size: .875rem; }
   #lyric-status:empty { display: none; }
-  #lyrics { position: relative; height: 180px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  #lyrics { position: relative; height: 180px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: auto; }
+  #lyrics::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  #lyrics:focus-visible { outline: 2px solid #91baff; outline-offset: -2px; }
   #lyric-lines { padding: 58px 0; }
-  #lyric-lines p { margin: 0; padding: 10px 12px; text-align: center; white-space: pre-line; overflow-wrap: anywhere; color: #687588; font-size: .9375rem; line-height: 1.7; }
+  #lyric-lines p { margin: 0; padding: 10px 12px; text-align: center; white-space: pre-line; overflow-wrap: anywhere; color: #687588; font-size: calc(.9375rem + var(--lyric-emphasis, 0px)); line-height: 1.7; }
   #lyric-lines p.active { color: #1162ce; font-weight: 650; }
   .search-card { padding: 18px 20px; margin-bottom: 18px; }
   .search-label { display: block; margin-bottom: 8px; font-size: .9375rem; font-weight: 600; }
@@ -118,7 +120,7 @@
     <p id="notice" role="status"></p>
     <div class="lyrics-shell">
       <p id="lyric-status" aria-live="polite">选择歌曲查看歌词</p>
-      <div id="lyrics" hidden aria-label="歌曲歌词"><div id="lyric-lines"></div></div>
+      <div id="lyrics" hidden tabindex="0" aria-label="歌曲歌词"><div id="lyric-lines"></div></div>
     </div>
   </section>
   <section class="card search-card" aria-label="歌曲搜索">
@@ -172,6 +174,7 @@
   const shuffleOrder = [];
   let shuffleReady = false;
   let scrubbing = false;
+  let centeredLyric = -2, manualScrollUntil = 0, manualPointer = false, manualTouch = false;
 
   function formatTime(value) {
     const seconds = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
@@ -415,7 +418,7 @@
     notice.textContent = '';
     lyricRequest++;
     timedLyrics = [];
-    lyricIndex = -1;
+    resetLyricFollow();
     lyricLines.replaceChildren();
     lyricPanel.hidden = true;
     lyricStatus.textContent = '选择歌曲查看歌词';
@@ -482,7 +485,7 @@
   async function loadLyrics(track) {
     const request = ++lyricRequest;
     timedLyrics = [];
-    lyricIndex = -1;
+    resetLyricFollow();
     lyricLines.replaceChildren();
     lyricPanel.hidden = true;
     lyricStatus.textContent = '正在读取歌词…';
@@ -505,6 +508,25 @@
       if (request === lyricRequest) lyricStatus.textContent = '暂无歌词';
     }
   }
+  function resetLyricFollow() {
+    lyricIndex = -1;
+    centeredLyric = -2;
+    manualScrollUntil = 0;
+    manualPointer = false;
+    manualTouch = false;
+  }
+  function manualLyricScroll() {
+    const interrupt = centeredLyric !== -2;
+    centeredLyric = -2;
+    manualScrollUntil = Date.now() + 3000;
+    // Cancel automatic easing once; native wheel/touch movement stays untouched.
+    if (interrupt) lyricPanel.scrollTo({ top: lyricPanel.scrollTop, behavior: 'auto' });
+  }
+  function releaseLyricPointer() {
+    if (!manualPointer) return;
+    manualPointer = false;
+    manualLyricScroll();
+  }
   function updateLyrics() {
     if (!timedLyrics.length) return;
     const time = player.currentTime;
@@ -515,9 +537,16 @@
       else high = middle;
     }
     const active = low - 1;
-    if (active === lyricIndex) return;
-    lyricIndex = active;
-    [...lyricLines.children].forEach((p, i) => p.classList.toggle('active', i === active));
+    if (active !== lyricIndex) {
+      lyricIndex = active;
+      [...lyricLines.children].forEach((p, i) => {
+        p.classList.toggle('active', i === active);
+        const emphasis = active >= 0 ? Math.max(0, 2 - Math.abs(i - active) * 0.5) : 0;
+        p.style.setProperty('--lyric-emphasis', `${emphasis}px`);
+      });
+    }
+    if (manualPointer || manualTouch || Date.now() < manualScrollUntil || active === centeredLyric) return;
+    centeredLyric = active;
     const line = lyricLines.children[active];
     lyricPanel.scrollTo({
       top: line ? Math.max(0, line.offsetTop - lyricPanel.clientHeight / 2 + (line.offsetHeight || 32) / 2) : 0,
@@ -530,6 +559,18 @@
   document.querySelector('#refresh').onclick = refresh;
   search.addEventListener('input', () => { renderSearch(); saveState(); });
   library.addEventListener('toggle', () => saveState());
+  lyricPanel.addEventListener('wheel', manualLyricScroll, { passive: true });
+  lyricPanel.addEventListener('touchstart', () => { manualTouch = true; manualLyricScroll(); }, { passive: true });
+  lyricPanel.addEventListener('touchmove', manualLyricScroll, { passive: true });
+  const releaseLyricTouch = () => { if (manualTouch) { manualTouch = false; manualLyricScroll(); } };
+  lyricPanel.addEventListener('touchend', releaseLyricTouch, { passive: true });
+  lyricPanel.addEventListener('touchcancel', releaseLyricTouch, { passive: true });
+  lyricPanel.addEventListener('pointerdown', () => { manualPointer = true; manualLyricScroll(); }, { passive: true });
+  lyricPanel.addEventListener('keydown', event => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) manualLyricScroll();
+  });
+  window.addEventListener('pointerup', releaseLyricPointer);
+  window.addEventListener('pointercancel', releaseLyricPointer);
   seek.addEventListener('input', () => { scrubbing = true; updateProgress(); });
   seek.addEventListener('pointercancel', () => { scrubbing = false; updateProgress(); });
   seek.addEventListener('change', () => {

@@ -13,6 +13,7 @@ class Element {
     this.value = ''; this.open = false; this.hidden = false; this.currentTime = 0;
     this.readyState = 0; this.duration = 100; this.paused = true; this.clientHeight = 160;
     this.playCalls = 0; this.scrollTop = 0;
+    this.scrollCalls = []; this.listenerOptions = {};
     this.ended = false;
     this.style = { setProperty: (name, value) => { this.attributes[name] = value; } };
     this.classList = { toggle: (name, on) => { this.attributes[name] = on; } };
@@ -24,10 +25,10 @@ class Element {
   toggleAttribute(key, force) { if (force) this.attributes[key] = ''; else delete this.attributes[key]; }
   getAttribute(key) { return this.attributes[key] ?? null; }
   removeAttribute(key) { delete this.attributes[key]; if (key === 'src') this._src = undefined; }
-  addEventListener(key, handler) { this.events[key] = handler; }
+  addEventListener(key, handler, options) { this.events[key] = handler; this.listenerOptions[key] = options; }
   set src(value) { this._src = value; this.currentTime = 0; this.readyState = 0; }
   get src() { return this._src; }
-  scrollTo(options) { this.scrollTop = options.top; }
+  scrollTo(options) { this.scrollTop = options.top; this.scrollCalls.push(options); }
   load() { this.currentTime = 0; }
   async play() { this.paused = false; this.playCalls++; this.events.play?.(); }
   pause() { this.paused = true; this.events.pause?.(); }
@@ -39,6 +40,7 @@ async function browser(names, options = {}) {
     'toggle-play', 'seek', 'elapsed', 'duration', 'play-icon', 'pause-icon', 'shuffle-icon', 'sequence-icon'];
   const nodes = Object.fromEntries(ids.map(id => [id, new Element()]));
   let random = 0;
+  let now = 10000;
   const math = Object.create(Math);
   math.random = () => random;
   const storage = options.storage || new Map();
@@ -50,7 +52,8 @@ async function browser(names, options = {}) {
       getItem: key => { if (options.brokenStorage) throw Error('Blocked'); return storage.get(key) || null; },
       setItem: (key, value) => { if (options.brokenStorage) throw Error('Quota'); storage.set(key, value); },
     },
-    window: { addEventListener: (key, handler) => { events[key] = handler; }, matchMedia: () => ({ matches: true }) },
+    window: { addEventListener: (key, handler) => { events[key] = handler; }, matchMedia: () => ({ matches: options.reducedMotion !== false }) },
+    Date: class extends Date { static now() { return now; } },
     fetch: async url => {
       fetches.push(url);
       if (url === 'api/tracks') {
@@ -68,7 +71,7 @@ async function browser(names, options = {}) {
   };
   vm.runInNewContext(source, sandbox);
   await new Promise(resolve => setImmediate(resolve));
-  return { nodes, storage, events, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; } };
+  return { nodes, storage, events, fetches, parseLrc: sandbox.parseLrc, random: value => { random = value; }, advance: ms => { now += ms; } };
 }
 
 (async () => {
@@ -381,5 +384,60 @@ async function browser(names, options = {}) {
   assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, ['/media/Only.mp3'], 'Restoring a paused current song must not consume its requested repeat');
   await repeatRestored.nodes.player.events.ended();
   assert.deepEqual(JSON.parse(repeatRestored.storage.get(stateKey)).upNext, []);
-  console.log('PASS: stable shuffle/history, custom controls/seek/mode, record animation, queue, persistence, search and lyrics');
+  const lyricFollow = await browser(['Follow.mp3'], {
+    reducedMotion: false,
+    lyrics: { 'Follow.mp3': '[00:00]zero\n[00:02]one\n[00:04]two\n[00:06]three\n[00:08]four\n[00:10]five\n[00:12]six\n[00:14]seven' },
+  });
+  const f = lyricFollow.nodes;
+  await f.next.onclick();
+  await new Promise(resolve => setImmediate(resolve));
+  f.player.currentTime = 6.1;
+  f.player.events.timeupdate();
+  assert.equal(f['lyric-lines'].children[3].attributes['--lyric-emphasis'], '2px');
+  assert.equal(f['lyric-lines'].children[2].attributes['--lyric-emphasis'], '1.5px');
+  assert.equal(f['lyric-lines'].children[1].attributes['--lyric-emphasis'], '1px');
+  assert.equal(f['lyric-lines'].children[0].attributes['--lyric-emphasis'], '0.5px');
+  assert.equal(f['lyric-lines'].children[7].attributes['--lyric-emphasis'], '0px');
+  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth', 'Automatic follow must be smooth');
+  assert.equal(typeof f.lyrics.events.wheel, 'function', 'Manual scrolling must interrupt automatic follow');
+  assert.equal(f.lyrics.listenerOptions.wheel.passive, true, 'Manual wheel movement must stay native');
+  f.lyrics.events.wheel({ preventDefault() { throw Error('Do not cancel native wheel input'); } });
+  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'auto', 'Manual input must cancel in-flight smooth scrolling');
+  f.lyrics.scrollTop = 200;
+  const manualCalls = f.lyrics.scrollCalls.length;
+  f.player.currentTime = 8.1;
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.length, manualCalls, 'Do not fight manual scrolling when the active lyric changes');
+  assert.equal(f['lyric-lines'].children[4].attributes.active, true, 'Highlight must still follow audio during manual browsing');
+  lyricFollow.advance(2999);
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.length, manualCalls);
+  lyricFollow.advance(2);
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.length, manualCalls + 1, 'Resume smooth follow after manual idle even if lyric has not changed');
+  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
+  f.lyrics.events.pointerdown();
+  const heldCalls = f.lyrics.scrollCalls.length;
+  lyricFollow.advance(10000);
+  f.player.currentTime = 10.1;
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.length, heldCalls, 'A held pointer must suppress recentering');
+  lyricFollow.events.pointerup();
+  lyricFollow.advance(3001);
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
+  assert.equal(typeof f.lyrics.events.touchstart, 'function');
+  f.lyrics.events.touchstart();
+  f.lyrics.events.pointerdown();
+  lyricFollow.events.pointercancel();
+  const touchCalls = f.lyrics.scrollCalls.length;
+  lyricFollow.advance(10000);
+  f.player.currentTime = 12.1;
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.length, touchCalls, 'Native touch scrolling must not release the hold when pointercancel fires');
+  f.lyrics.events.touchend();
+  lyricFollow.advance(3001);
+  f.player.events.timeupdate();
+  assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth');
+  console.log('PASS: playback/state/queue, custom controls, lyrics hierarchy, smooth follow and native manual scrolling');
 })().catch(error => { console.error(error); process.exitCode = 1; });
