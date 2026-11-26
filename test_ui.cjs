@@ -393,10 +393,10 @@ async function browser(names, options = {}) {
   await new Promise(resolve => setImmediate(resolve));
   f.player.currentTime = 6.1;
   f.player.events.timeupdate();
-  assert.equal(f['lyric-lines'].children[3].attributes['--lyric-emphasis'], '2px');
-  assert.equal(f['lyric-lines'].children[2].attributes['--lyric-emphasis'], '1.5px');
-  assert.equal(f['lyric-lines'].children[1].attributes['--lyric-emphasis'], '1px');
-  assert.equal(f['lyric-lines'].children[0].attributes['--lyric-emphasis'], '0.5px');
+  assert.equal(f['lyric-lines'].children[3].attributes['--lyric-emphasis'], '4px');
+  assert.equal(f['lyric-lines'].children[2].attributes['--lyric-emphasis'], '3px');
+  assert.equal(f['lyric-lines'].children[1].attributes['--lyric-emphasis'], '2px');
+  assert.equal(f['lyric-lines'].children[0].attributes['--lyric-emphasis'], '1px');
   assert.equal(f['lyric-lines'].children[7].attributes['--lyric-emphasis'], '0px');
   assert.equal(f.lyrics.scrollCalls.at(-1).behavior, 'smooth', 'Automatic follow must be smooth');
   assert.equal(typeof f.lyrics.events.wheel, 'function', 'Manual scrolling must interrupt automatic follow');

@@ -53,7 +53,7 @@
   #lyrics::-webkit-scrollbar { display: none; width: 0; height: 0; }
   #lyrics:focus-visible { outline: 2px solid #91baff; outline-offset: -2px; }
   #lyric-lines { padding: 58px 0; }
-  #lyric-lines p { margin: 0; padding: 10px 12px; text-align: center; white-space: pre-line; overflow-wrap: anywhere; color: #687588; font-size: calc(.9375rem + var(--lyric-emphasis, 0px)); line-height: 1.7; }
+  #lyric-lines p { margin: 0; padding: 8px 12px; text-align: center; white-space: pre-line; overflow-wrap: anywhere; color: #687588; font-size: calc(.9375rem + var(--lyric-emphasis, 0px)); line-height: 1.625rem; }
   #lyric-lines p.active { color: #1162ce; font-weight: 650; }
   .search-card { padding: 18px 20px; margin-bottom: 18px; }
   .search-label { display: block; margin-bottom: 8px; font-size: .9375rem; font-weight: 600; }
@@ -541,7 +541,7 @@
       lyricIndex = active;
       [...lyricLines.children].forEach((p, i) => {
         p.classList.toggle('active', i === active);
-        const emphasis = active >= 0 ? Math.max(0, 2 - Math.abs(i - active) * 0.5) : 0;
+        const emphasis = active >= 0 ? Math.max(0, 4 - Math.abs(i - active)) : 0;
         p.style.setProperty('--lyric-emphasis', `${emphasis}px`);
       });
     }
