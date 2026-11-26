@@ -1,0 +1,139 @@
+# mp3-player
+
+一个轻量的自托管 MP3 网页播放器。指定 Linux 上的音乐目录，即可在浏览器中听歌；服务端只使用 Python 标准库，前端无需安装依赖或编译。
+
+## 功能
+
+- **流式播放**：按需读取 MP3，支持 HTTP Range 请求和拖动进度。
+- **顺序与随机播放**：支持自动下一首；随机模式避开当前歌曲，上一首优先返回播放历史。
+- **状态记忆**：刷新后恢复列表顺序、随机开关、当前歌曲、进度、搜索内容和列表展开状态。
+- **搜索与折叠列表**：按文件名搜索；全部歌曲默认收起，搜索不改变播放队列。
+- **动态歌词**：读取本地 LRC，随播放高亮、滚动，拖动进度时同步。
+- **简单部署**：一个 Python 服务同时提供网页和音频，可直接运行，也可由 systemd 管理。
+
+## 快速开始
+
+需要 **Python 3.8 或更新版本**和支持 HTML5 音频的现代浏览器。运行服务不需要 Node.js、pip 依赖或 Nginx。
+
+在项目根目录执行：
+
+```bash
+python3 server.py "/home/you/Music" --port 8080
+```
+
+然后访问 `http://服务器IP:8080/`。已有网络转发时，让转发目标指向对应的服务端口即可。
+
+参数：
+
+| 参数 | 作用 | 默认值 |
+| --- | --- | --- |
+| `folder` | 必填，存放 MP3 的目录 | — |
+| `--port` | HTTP 监听端口 | `8080` |
+| `--bind` | 监听地址 | `0.0.0.0` |
+| `--lyrics-dir` | 单独指定歌词目录 | `<音乐目录>/Lyrics` |
+
+例如，只监听本机并指定独立歌词目录：
+
+```bash
+python3 server.py "/home/you/Music" \
+  --bind 127.0.0.1 \
+  --port 8080 \
+  --lyrics-dir "/home/you/Lyrics"
+```
+
+服务只扫描音乐目录的当前层，`.mp3` 后缀不区分大小写，支持中文、空格等文件名。新增歌曲后点击“刷新列表”。第一次按文件名排序，后续保留已有歌曲的顺序，将新增歌曲追加到末尾，并移除已删除歌曲。
+
+## 歌词目录
+
+```text
+Music/
+├── 歌曲名 - 歌手.mp3
+├── 另一首歌.mp3
+└── Lyrics/
+    ├── 歌曲名 - 歌手.lrc
+    └── 另一首歌.lrc
+```
+
+优先选择完全同名的 `.lrc`；其次尝试不区分大小写的同名匹配，再尝试唯一的同前缀匹配，例如 `另一首歌翻译版.lrc`。多个前缀候选存在时不猜测。音频名重复带 `.mp3` 后缀时，也会尝试移除重复后缀来匹配歌词。
+
+示例 LRC：
+
+```lrc
+[00:00.00]前奏
+[00:05.20]第一行测试歌词
+[00:10.50]第二行测试歌词
+[00:10.50]同一时间戳的翻译
+```
+
+支持 UTF-8、UTF-8 BOM 和 GB18030 编码，支持多时间标签、同时间翻译与 `[offset:毫秒]`。无时间轴的文本静态显示；没有歌词时仍可播放音频。
+
+## 刷新与状态恢复
+
+播放状态保存在浏览器的 `localStorage` 中。同一浏览器、同一协议/域名/端口下刷新页面，会恢复歌曲选择、进度和界面状态；恢复后保持暂停，点击播放继续。
+
+这项功能保存的是播放记录，不会下载整个音乐库供离线播放。清除网站数据后记录会消失。不同浏览器之间不共享记录；同时打开多个标签页时，最后保存的记录生效。音乐根目录发生变化时会清除旧目录的歌曲选择，避免选中另一首同名文件。
+
+## systemd 部署
+
+仓库提供了 [`deploy/mp3-player.service`](deploy/mp3-player.service)。先修改其中的 `User`、`WorkingDirectory`、`ExecStart`，使其符合你的用户名、项目位置和音乐目录。用 `command -v python3` 确认 Python 的绝对路径。
+
+```bash
+sudo cp deploy/mp3-player.service /etc/systemd/system/mp3-player.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now mp3-player.service
+sudo systemctl status mp3-player.service
+```
+
+查看实时日志、重启或停止：
+
+```bash
+sudo journalctl -u mp3-player.service -f
+sudo systemctl restart mp3-player.service
+sudo systemctl stop mp3-player.service
+```
+
+修改 `.service` 文件后，需要再次执行 `daemon-reload`，再重启服务。
+
+服务默认提供 HTTP。需要 HTTPS 时，可由已有转发入口或反向代理处理 TLS；使用 Nginx 时可将本服务绑定到 `127.0.0.1`，再代理对应端口。
+
+## 测试
+
+在项目根目录执行 HTTP 集成测试：
+
+```bash
+python3 -m unittest discover -v
+```
+
+测试使用临时音乐、歌词目录和本机回环地址，覆盖音频分段读取、歌词匹配与编码、HEAD 和目录访问限制。测试文件中的音频字节是传输测试数据。
+
+可选：安装 Node.js 后运行前端逻辑测试，不需要 npm 安装：
+
+```bash
+node test_ui.cjs
+```
+
+覆盖随机播放、历史返回、刷新恢复、搜索、存储不可用、旧请求竞争和歌词同步。音频解码和浏览器界面还应在目标浏览器中试播确认。
+
+## 项目结构
+
+```text
+mp3-player/
+├── server.py                  # HTTP、音频分段读取与歌词接口
+├── index.html                 # 网页、播放状态和歌词同步
+├── test_server.py             # HTTP 集成测试
+├── test_ui.cjs                # 前端逻辑测试
+├── deploy/mp3-player.service  # systemd 示例
+├── .github/description.txt    # GitHub 仓库简介
+├── README.md
+└── LICENSE
+```
+
+## 使用范围
+
+这是一个供个人或少量用户使用的文件播放器，服务不带账号认证；能访问服务端口的用户可以播放、下载所选目录中的 MP3。它不提供上传、删除或音频转码。手机浏览器的连续后台播放取决于系统与浏览器行为。
+
+## 致谢与许可证
+
+界面风格参考了 [ML-Netease_url](https://github.com/midairlogn/ML-Netease_url) 的浅色卡片与蓝色控件设计。
+
+本项目采用 [MIT License](LICENSE)。允许使用、修改、分发和商用，分发时需保留版权及许可声明。许可证适用于本项目代码，不授予音乐或歌词文件的使用权。

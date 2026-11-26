@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.log
+*.pid
+*.mp3
+*.MP3
+*.lrc
+*.LRC
+.DS_Store
+Thumbs.db
